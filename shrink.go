@@ -70,7 +70,7 @@ func convertToStdOut(img image.Image, i int) {
 
 	var xmod, ymod float32
 
-	xyratio := float32(25.0) / 35.0
+	xyratio := float32(25.0) / 25.0
 	if i >= img.Bounds().Max.X {
 		xmod = 1.0
 		ymod = 1.0
