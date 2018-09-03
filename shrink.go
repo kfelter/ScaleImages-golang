@@ -34,6 +34,8 @@ func main() {
 	} else if os.Args[1] == "scale" || os.Args[1] == "s" {
 		i, _ := strconv.Atoi(os.Args[3])
 		convertToFile(img, "out.png", i)
+	} else if os.Args[1] == "square" {
+		CenterSquare(img, "out.png")
 	}
 }
 
@@ -70,7 +72,7 @@ func convertToStdOut(img image.Image, i int) {
 
 	var xmod, ymod float32
 
-	xyratio := float32(25.0) / 25.0
+	xyratio := float32(25.0) / 35.0
 	if i >= img.Bounds().Max.X {
 		xmod = 1.0
 		ymod = 1.0
@@ -98,4 +100,37 @@ func convertToStdOut(img image.Image, i int) {
 		}
 
 	}
+}
+
+func CenterSquare(img image.Image, fname string){
+	//get the smaller dimention
+	max := img.Bounds().Max.X
+	if img.Bounds().Max.Y < max{
+		max = img.Bounds().Max.Y
+	}
+	a := image.NewNRGBA(image.Rect(0, 0, max, max))
+	//cut off either side of the bigger dim to get a square
+	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
+			for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+					a.Set(x, y, img.At(x, y))
+			}
+	}
+
+	f, err := os.Create(fname)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := png.Encode(f, a); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+}
+
+fun IncreaseContrast(){
 }
