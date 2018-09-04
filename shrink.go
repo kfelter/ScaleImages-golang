@@ -9,7 +9,13 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
+
+type imWithType struct {
+	im image.Image
+	t  string
+}
 
 func main() {
 	var w int
@@ -22,38 +28,71 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// This example uses png.Decode which can only decode PNG images.
-	// Consider using the general image.Decode as it can sniff and decode any registered image format.
-	found := false
-	var img image.Image
-	img, err = jpeg.Decode(d)
+
+	imtype := readimage(d, os.Args[2])
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// // This example uses png.Decode which can only decode PNG images.
+	// // Consider using the general image.Decode as it can sniff and decode any registered image format.
+	// found := false
+	// format := ".jpg"
+	// var img image.Image
+	// img, err = jpeg.Decode(d)
+
 	//fmt.Println(u)
-	if err != nil {
-		log.Println(img, err)
-	} else {
-		found = true
-	}
-	if !found {
-		img, err = png.Decode(d)
-		if err != nil {
-			log.Println(err)
-		}
-	}
+	// if err != nil {
+	// 	log.Println(img, err)
+	// } else {
+	// 	found = true
+	// }
+	// if !found {
+	// 	img, err = png.Decode(d)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 	}
+	// }
 
 	if os.Args[1] == "print" || os.Args[1] == "p" {
 		w = 80
 		if len(os.Args) > 3 {
 			w, _ = strconv.Atoi(os.Args[3])
 		}
-		convertToStdOut(img, w)
+		convertToStdOut(imtype.im, w)
 	} else if os.Args[1] == "scale" || os.Args[1] == "s" {
 		i, _ := strconv.Atoi(os.Args[3])
-		convertToFile(img, "out.png", i)
+		convertToFile(imtype.im, "out."+imtype.t, i)
 	} else if os.Args[1] == "square" {
-		CenterSquare(img, "out.png")
+		CenterSquare(imtype.im, "out."+imtype.t)
 	} else if os.Args[1] == "pixel" {
 		i, _ := strconv.Atoi(os.Args[3])
-		SameResolutionPixelation(img, i)
+		SameResolutionPixelation(imtype.im, i, "out."+imtype.t)
+	}
+}
+
+func readimage(f *os.File, n string) imWithType {
+
+	imtype := strings.Split(n, ".")[1]
+
+	if imtype == "jpg" || imtype == "jpeg" || imtype == "JPEG" {
+		img, err := jpeg.Decode(f)
+
+		//fmt.Println(u)
+		if err != nil {
+			log.Fatal(img, err)
+		}
+		return imWithType{
+			im: img,
+			t:  imtype,
+		}
+	}
+	img, err := png.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return imWithType{
+		im: img,
+		t:  imtype,
 	}
 }
 
@@ -162,7 +201,7 @@ func IncreaseContrast() {
 }
 
 // SameResolutionPixelation pixelates images but keeps the resolution
-func SameResolutionPixelation(img image.Image, scale int) {
+func SameResolutionPixelation(img image.Image, scale int, outname string) {
 	//get smaller side
 	width := img.Bounds().Max.X
 	height := img.Bounds().Max.Y
@@ -204,7 +243,7 @@ func SameResolutionPixelation(img image.Image, scale int) {
 		}
 	}
 
-	f, err := os.Create("out.png")
+	f, err := os.Create(outname)
 	if err != nil {
 		log.Fatal(err)
 	}
