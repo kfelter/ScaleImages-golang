@@ -30,28 +30,6 @@ func main() {
 	}
 
 	imtype := readimage(d, os.Args[2])
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// // This example uses png.Decode which can only decode PNG images.
-	// // Consider using the general image.Decode as it can sniff and decode any registered image format.
-	// found := false
-	// format := ".jpg"
-	// var img image.Image
-	// img, err = jpeg.Decode(d)
-
-	//fmt.Println(u)
-	// if err != nil {
-	// 	log.Println(img, err)
-	// } else {
-	// 	found = true
-	// }
-	// if !found {
-	// 	img, err = png.Decode(d)
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 	}
-	// }
 
 	if os.Args[1] == "print" || os.Args[1] == "p" {
 		w = 80
@@ -109,6 +87,7 @@ func scaleImg(img image.Image, scale int) image.Image {
 	}
 	return a
 }
+
 func convertToFile(img image.Image, fname string, scale int) {
 
 	a := scaleImg(img, scale)
@@ -142,8 +121,8 @@ func convertToStdOut(img image.Image, i int) {
 		ymod = xmod / xyratio
 	}
 
-	//levels := []string{" ", "░", "▒", "▓", "█"}
-	levels := []string{"█", "▓", "▒", "░", " "}
+	levels := []string{" ", "░", "▒", "▓", "█"}
+	//levels := []string{"█", "▓", "▒", "░", " "}
 
 	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
 		if y%int(ymod) == 0 {
@@ -260,40 +239,11 @@ func SameResolutionPixelation(img image.Image, scale int, outname string) {
 }
 
 func pixelAverage(img image.Image, scale int, outname string) {
+	small := scaleImg(img, scale)
+	normal := growImage(small)
 
-	a := image.NewNRGBA(image.Rect(img.Bounds().Min.X, img.Bounds().Min.Y, img.Bounds().Max.X, img.Bounds().Max.Y))
-
-	for i := 1; i < scale; i++ {
-		//cut off either side of the bigger dim to get a square
-		//could be optimized
-		for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y += 2 {
-			for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x += 2 {
-				//Get 4 pix
-				tlr, tlg, tlb, tla := img.At(x, y).RGBA()
-				trr, trg, trb, tra := img.At(x+i, y).RGBA()
-				blr, blg, blb, bla := img.At(x, y+i).RGBA()
-				brr, brg, brb, bra := img.At(x+i, y+i).RGBA()
-
-				avgs := new([4]uint32)
-				avgs[0] = (tlr + trr + blr + brr) / 4
-				avgs[1] = (tlg + trg + blg + brg) / 4
-				avgs[2] = (tlb + trb + blb + brb) / 4
-				avgs[3] = (tla + tra + bla + bra) / 4
-				avgColor := color.RGBA64{
-					R: uint16(avgs[0]),
-					G: uint16(avgs[1]),
-					B: uint16(avgs[2]),
-					A: uint16(avgs[3]),
-				}
-
-				//set 4 pix
-				a.Set(x, y, avgColor)
-				a.Set(x+1, y, avgColor)
-				a.Set(x, y+1, avgColor)
-				a.Set(x+1, y+1, avgColor)
-			}
-		}
-		img = a
+	for normal.Bounds().Max.X < img.Bounds().Max.X {
+		normal = growImage(normal)
 	}
 
 	f, err := os.Create(outname)
@@ -301,7 +251,7 @@ func pixelAverage(img image.Image, scale int, outname string) {
 		log.Fatal(err)
 	}
 
-	if err := png.Encode(f, a); err != nil {
+	if err := png.Encode(f, normal); err != nil {
 		f.Close()
 		log.Fatal(err)
 	}
@@ -309,4 +259,17 @@ func pixelAverage(img image.Image, scale int, outname string) {
 	if err := f.Close(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func growImage(img image.Image) image.Image {
+	a := image.NewNRGBA(image.Rect(img.Bounds().Min.X*2, img.Bounds().Min.Y*2, img.Bounds().Max.X*2, img.Bounds().Max.Y*2))
+	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
+			a.Set(x*2, y*2, img.At(x, y))
+			a.Set(x*2+1, y*2, img.At(x, y))
+			a.Set(x*2, y*2+1, img.At(x, y))
+			a.Set(x*2+1, y*2+1, img.At(x, y))
+		}
+	}
+	return a
 }
