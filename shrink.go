@@ -66,7 +66,7 @@ func main() {
 		CenterSquare(imtype.im, "out."+imtype.t)
 	} else if os.Args[1] == "pixel" {
 		i, _ := strconv.Atoi(os.Args[3])
-		SameResolutionPixelation(imtype.im, i, "out."+imtype.t)
+		pixelAverage(imtype.im, i, "out."+imtype.t)
 	}
 }
 
@@ -83,7 +83,7 @@ func readimage(f *os.File, n string) imWithType {
 		}
 		return imWithType{
 			im: img,
-			t:  imtype,
+			t:  "png",
 		}
 	}
 	img, err := png.Decode(f)
@@ -92,7 +92,7 @@ func readimage(f *os.File, n string) imWithType {
 	}
 	return imWithType{
 		im: img,
-		t:  imtype,
+		t:  "png",
 	}
 }
 
@@ -142,7 +142,8 @@ func convertToStdOut(img image.Image, i int) {
 		ymod = xmod / xyratio
 	}
 
-	levels := []string{" ", "░", "▒", "▓", "█"}
+	//levels := []string{" ", "░", "▒", "▓", "█"}
+	levels := []string{"█", "▓", "▒", "░", " "}
 
 	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
 		if y%int(ymod) == 0 {
@@ -241,6 +242,58 @@ func SameResolutionPixelation(img image.Image, scale int, outname string) {
 		if y%scale == 0 {
 			yoff++
 		}
+	}
+
+	f, err := os.Create(outname)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := png.Encode(f, a); err != nil {
+		f.Close()
+		log.Fatal(err)
+	}
+
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func pixelAverage(img image.Image, scale int, outname string) {
+
+	a := image.NewNRGBA(image.Rect(img.Bounds().Min.X, img.Bounds().Min.Y, img.Bounds().Max.X, img.Bounds().Max.Y))
+
+	for i := 1; i < scale; i++ {
+		//cut off either side of the bigger dim to get a square
+		//could be optimized
+		for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y += 2 {
+			for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x += 2 {
+				//Get 4 pix
+				tlr, tlg, tlb, tla := img.At(x, y).RGBA()
+				trr, trg, trb, tra := img.At(x+i, y).RGBA()
+				blr, blg, blb, bla := img.At(x, y+i).RGBA()
+				brr, brg, brb, bra := img.At(x+i, y+i).RGBA()
+
+				avgs := new([4]uint32)
+				avgs[0] = (tlr + trr + blr + brr) / 4
+				avgs[1] = (tlg + trg + blg + brg) / 4
+				avgs[2] = (tlb + trb + blb + brb) / 4
+				avgs[3] = (tla + tra + bla + bra) / 4
+				avgColor := color.RGBA64{
+					R: uint16(avgs[0]),
+					G: uint16(avgs[1]),
+					B: uint16(avgs[2]),
+					A: uint16(avgs[3]),
+				}
+
+				//set 4 pix
+				a.Set(x, y, avgColor)
+				a.Set(x+1, y, avgColor)
+				a.Set(x, y+1, avgColor)
+				a.Set(x+1, y+1, avgColor)
+			}
+		}
+		img = a
 	}
 
 	f, err := os.Create(outname)
